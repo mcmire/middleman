@@ -139,9 +139,14 @@ module Middleman
 
       p = Pathname(path)
 
+      logger.debug "== Produced Pathname: #{p}"
+
       return nil if p.absolute? && !p.to_s.start_with?(@directory.to_s)
 
       p = @directory + p if p.relative?
+
+      logger.debug "== Produced Pathname 2: #{p}"
+
 
       if glob
         @extensionless_files[p]
@@ -244,6 +249,9 @@ module Middleman
     # @return [void]
     Contract Array, Array, Array => Any
     def on_listener_change(modified, added, removed)
+      logger.debug "== On Listener Change"
+      logger.debug({modified: modified}.pretty_inspect)
+
       updated = (modified + added)
 
       return if updated.empty? && removed.empty?
@@ -260,6 +268,15 @@ module Middleman
       valid_updates = updated_paths
                       .map { |p| @files[p] || path_to_source_file(p, @directory, @type, @options[:destination_dir]) }
                       .select(&method(:valid?))
+
+      logger.debug({
+        # files: @files,
+        updated_paths: updated_paths,
+        valid_updates: valid_updates,
+        directory: @directory,
+        type: @type,
+        destination_dir: @options[:destination_dir]
+      }.pretty_inspect)
 
       valid_updates.each do |f|
         record_file_change(f)
@@ -285,6 +302,7 @@ module Middleman
                       end
 
       unless valid_updates.empty? && valid_removes.empty?
+        logger.debug "== (SourceWatcher #{object_id}) Executing on_change callbacks"
         execute_callbacks(:on_change, [
                             valid_updates,
                             valid_removes,
@@ -300,17 +318,26 @@ module Middleman
     # @param [Pathname] path The path.
     # @return [Middleman::SourceFile]
     Contract Pathname, Pathname, Symbol, Maybe[String] => ::Middleman::SourceFile
-    def path_to_source_file(path, directory, type, destination_dir)
+    def path_to_source_file(full_path, source_dir, type, destination_dir)
+      logger.debug "*** OVERRIDDEN VERSION ***"
+
       types = Set.new([type])
       types << :no_frontmatter unless @frontmatter
       types << :binary if @binary
 
-      relative_path = path.relative_path_from(directory)
-      relative_path = File.join(destination_dir, relative_path) if destination_dir
+      # PATCH: Don't prepend the destination_dir, keep the path relative
+      relative_path = full_path.relative_path_from(directory)
 
       types << :no_frontmatter if partial?(relative_path.to_s)
 
-      ::Middleman::SourceFile.new(Pathname(relative_path), path, directory, types, 0)
+      Middleman::SourceFile.new(
+        Pathname(relative_path),
+        full_path,
+        source_dir,
+        destination_dir,
+        types,
+        0
+      )
     end
 
     def partial?(relative_path)

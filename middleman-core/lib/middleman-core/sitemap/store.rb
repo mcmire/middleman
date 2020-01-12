@@ -193,11 +193,23 @@ module Middleman
       # @return [String]
       Contract Or[Pathname, IsA['Middleman::SourceFile']] => String
       def file_to_path(file)
-        relative_path = file.is_a?(Pathname) ? file.to_s : file[:relative_path].to_s
+
+        relative_path =
+          if file.is_a?(Pathname)
+            file.to_s
+          # PATCH: Prepend the destination dir to the relative path
+          elsif file[:destination_dir]
+            File.join(file[:destination_dir], file[:relative_path])
+          else
+            file[:relative_path].to_s
+          end
 
         # Replace a file name containing automatic_directory_matcher with a folder
         unless @app.config[:automatic_directory_matcher].nil?
-          relative_path = relative_path.gsub(@app.config[:automatic_directory_matcher], '/')
+          relative_path = relative_path.gsub(
+            @app.config[:automatic_directory_matcher],
+            '/'
+          )
         end
 
         extensionless_path(relative_path)

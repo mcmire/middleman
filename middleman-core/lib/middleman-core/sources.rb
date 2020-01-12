@@ -3,14 +3,17 @@ require 'middleman-core/contracts'
 
 module Middleman
   # The standard "record" that contains information about a file on disk.
-  SourceFile = Struct.new(:relative_path, :full_path, :directory, :types, :version) do
+  SourceFile = Struct.new(:relative_path, :full_path, :source_dir, :destination_dir, :types, :version) do
     def read
-      ::Middleman::Sources.file_cache[full_path] ||= {}
-      ::Middleman::Sources.file_cache[full_path][version] ||= ::File.read(full_path)
+      Middleman::Sources.file_cache[full_path] ||= {}
+      Middleman::Sources.file_cache[full_path][version] ||=
+        ::File.read(full_path)
     end
 
     def normalized_relative_path
-      @normalized_relative_path ||= ::Middleman::Util.normalize_path relative_path.to_s
+      @normalized_relative_path ||= Middleman::Util.normalize_path(
+        relative_path.to_s
+      )
     end
   end
 
@@ -268,6 +271,7 @@ module Middleman
     # @return [void]
     Contract Or[Symbol, ArrayOf[Symbol], SetOf[Symbol]], Proc => Any
     def on_change(types, &block)
+      logger.debug "== (Sources #{object_id}) Registering on_change from #{caller(4)[0]}"
       Array(types).each do |type|
         @on_change_callbacks = @on_change_callbacks.push(CallbackDescriptor.new(type, block))
       end
@@ -338,7 +342,9 @@ module Middleman
     Contract ArrayOf[SourceFile], ArrayOf[SourceFile], HANDLER => Any
     def did_change(updated_files, removed_files, watcher)
       valid_updated = updated_files.select do |file|
-        watcher_for_path(file[:types], file[:relative_path].to_s) == watcher
+        w1 = watcher_for_path(file[:types], file[:relative_path].to_s)
+        logger.debug({file: file, w1: w1.object_id, watcher: watcher.object_id}.pretty_inspect)
+        w1 == watcher
       end
 
       valid_removed = removed_files.select do |file|

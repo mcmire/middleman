@@ -38,6 +38,9 @@ module Middleman
         # @return [void]
         Contract ArrayOf[IsA['Middleman::SourceFile']], ArrayOf[IsA['Middleman::SourceFile']] => Any
         def update_files(updated_files, removed_files)
+          logger.debug "== (OnDisk) on_change called to update files"
+          logger.debug(updated_files.map(&:full_path).pretty_inspect)
+
           return if (updated_files + removed_files).all?(&method(:ignored?))
 
           # Rebuild the sitemap any time a file is touched
