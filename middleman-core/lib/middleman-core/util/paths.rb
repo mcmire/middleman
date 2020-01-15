@@ -6,6 +6,7 @@ require 'memoist'
 require 'tilt'
 
 require 'middleman-core/contracts'
+require 'middleman-core/util/find_resource'
 
 # rubocop:disable ModuleLength
 module Middleman
@@ -203,45 +204,18 @@ module Middleman
       if path_or_resource.is_a?(::Middleman::Sitemap::Resource)
         resource = path_or_resource
         resource_url = url
-      elsif this_resource && uri.path && !uri.host
-        # Handle relative urls
-        url_path = Pathname(uri.path)
-        current_source_dir = Pathname('/' + this_resource.path).dirname
-        url_path = current_source_dir.join(url_path) if url_path.relative?
-        resource = app.sitemap.find_resource_by_path(url_path.to_s)
-
-        if resource
-          # PATCH: Use destination_path instead of url
-          resource_url = resource.destination_path
-        else
-          # Try to find a resource relative to destination paths
-          url_path = Pathname(uri.path)
-          current_source_dir = Pathname('/' + this_resource.destination_path).dirname
-          url_path = current_source_dir.join(url_path) if url_path.relative?
-          resource = app.sitemap.find_resource_by_destination_path(url_path.to_s)
-        end
-
-        if resource
-          # PATCH: Use destination_path instead of url
-          resource_url = resource.destination_path
-        else
-          # PATCH: Try to find a resource relative to the resource, using its
-          # full path
-          url_path = Pathname(uri.path)
-          if url_path.relative?
-            current_source_dir = Pathname(this_resource.source_file).dirname
-            url_path = current_source_dir.join(url_path)
+      else
+        resource =
+          if this_resource && uri.path && !uri.host
+            # PATCH: Move this to FindResource
+            ::Middleman::Util::FindResource.call(app, this_resource, uri.path)
+          elsif options[:find_resource] && uri.path && !uri.host
+            app.sitemap.find_resource_by_path(uri.path)
           end
-          resource = app.sitemap.find_resource_by_full_path(url_path.to_s)
-          # binding.pry
-        end
 
-        if resource
-          # PATCH: Use destination_path instead of url
-          resource_url = resource.destination_path
-        end
-      elsif options[:find_resource] && uri.path && !uri.host
-        resource = app.sitemap.find_resource_by_path(uri.path)
+        # if !resource
+          # binding.pry
+        # end
 
         if resource
           # PATCH: Use destination_path instead of url
@@ -250,17 +224,18 @@ module Middleman
       end
 
       if resource
-        uri.path = if this_resource
-          ::Addressable::URI.encode(
-            relative_path_from_resource(
-              this_resource,
-              resource_url,
-              effective_relative
+        uri.path =
+          if this_resource
+            ::Addressable::URI.encode(
+              relative_path_from_resource(
+                this_resource,
+                resource_url,
+                effective_relative
+              )
             )
-          )
-        else
-          resource_url
-        end
+          else
+            resource_url
+          end
       end
 
       # Support a :query option that can be a string or hash

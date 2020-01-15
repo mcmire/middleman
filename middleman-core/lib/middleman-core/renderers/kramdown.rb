@@ -67,12 +67,12 @@ module Middleman
           # resource, if possible
           attrs =
             if el.value == "a"
-              Middleman::Logger.singleton.debug "== URL: #{scope.asset_url(el.attr["href"])}"
+              Middleman::Logger.singleton.debug "== (a) Resolving URL: #{scope.asset_url(el.attr["href"])}"
               el.attr.merge(
                 "href" => scope.asset_url(el.attr["href"])#, "", relative: true)
               )
             elsif el.value == "iframe"
-              Middleman::Logger.singleton.debug "== URL: #{scope.asset_url(el.attr["src"])}"
+              Middleman::Logger.singleton.debug "== (iframe) Resolving URL: #{scope.asset_url(el.attr["src"])}"
               el.attr.merge(
                 "src" => scope.asset_url(el.attr["src"])#, "", relative: true)
               )
