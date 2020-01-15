@@ -248,7 +248,12 @@ class Middleman::CoreExtensions::DefaultHelpers < ::Middleman::Extension
         raise ArgumentError, 'Options must be a hash' unless options.is_a?(Hash)
 
         # Transform the url through our magic url_for method
-        args[url_arg_index] = url_for(url, options)
+        # PATCH: Use asset_url instead, so /index.html is lopped off
+        args[url_arg_index] = asset_url(url, '', options)
+
+        # if URI.parse(url).relative?
+          # binding.pry
+        # end
 
         # Cleanup before passing to Padrino
         options.except!(:relative, :current_resource, :find_resource, :query, :anchor, :fragment)
@@ -275,14 +280,22 @@ class Middleman::CoreExtensions::DefaultHelpers < ::Middleman::Extension
             src_def
           else
             image_def, size_def = src_def.strip.split(/\s+/)
-            asset_path(:images, image_def) + ' ' + size_def
+            # TODO: Remove relative? Replace with something else?
+            asset_path(:images, image_def, relative: true) +
+              ' ' +
+              size_def
           end
         end
 
         params[:srcset] = images_sources.join(', ')
       end
 
-      super(path, params)
+      # TODO: Remove relative? Replace with something else?
+      super(path, params.merge(src: image_path(path, relative: true)))
+    end
+
+    def image_path(src, relative: false)
+      asset_path(:images, src, relative: relative)
     end
 
     def partial(template, options={}, &block)

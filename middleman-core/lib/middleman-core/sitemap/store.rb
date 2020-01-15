@@ -156,6 +156,18 @@ module Middleman
         end
       end
 
+      # PATCH!!
+      # Find a resource given its full file path
+      # @param [String] full_path The full file path of a resource.
+      # @return [Middleman::Sitemap::Resource]
+      Contract String => Maybe[IsA['Middleman::Sitemap::Resource']]
+      def find_resource_by_full_path(full_path)
+        @lock.synchronize do
+          ensure_resource_list_updated!
+          @_lookup_by_full_path[full_path]
+        end
+      end
+
       # Find a resource given its page id
       # @param [String] page_id The page id.
       # @return [Middleman::Sitemap::Resource]
@@ -193,15 +205,12 @@ module Middleman
       # @return [String]
       Contract Or[Pathname, IsA['Middleman::SourceFile']] => String
       def file_to_path(file)
-
         relative_path =
           if file.is_a?(Pathname)
             file.to_s
-          # PATCH: Prepend the destination dir to the relative path
-          elsif file[:destination_dir]
-            File.join(file[:destination_dir], file[:relative_path])
           else
-            file[:relative_path].to_s
+            # PATCH: Move this code to SourceFile
+            file.destination_path
           end
 
         # Replace a file name containing automatic_directory_matcher with a folder
@@ -257,6 +266,12 @@ module Middleman
                   @_lookup_by_destination_path[resource.destination_path] = resource
                 end
 
+                # PATCH: Add this collection so that we can look up asset files
+                # relative to Markdown files
+                @resources.each do |resource|
+                  @_lookup_by_full_path[resource.source_file] = resource
+                end
+
                 # NB: This needs to be done after the previous two steps,
                 # since some proxy resources are looked up by path in order to
                 # get their metadata and subsequently their page_id.
@@ -281,6 +296,7 @@ module Middleman
         @lock.synchronize do
           @_lookup_by_path = {}
           @_lookup_by_destination_path = {}
+          @_lookup_by_full_path = {}
           @_lookup_by_page_id = {}
         end
       end

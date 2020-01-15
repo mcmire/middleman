@@ -4,7 +4,7 @@ class Middleman::Extensions::AutomaticAltTags < ::Middleman::Extension
     # Override default image_tag helper to automatically insert alt tag
     # containing image name.
 
-    def image_tag(path, params={})
+    def image_tag(path, params={}, options={})
       unless path.include?('://')
         params[:alt] ||= ''
 
@@ -22,7 +22,7 @@ class Middleman::Extensions::AutomaticAltTags < ::Middleman::Extension
         end
       end
 
-      super(path, params)
+      super(path, params, options)
     end
   end
 end

@@ -51,6 +51,51 @@ module Middleman
 
         scope.link_to(content, link, attr)
       end
+
+      def convert_html_element(el, indent)
+        res = inner(el, indent)
+        if el.options[:category] == :span
+          "<#{el.value}#{html_attributes(el.attr)}" + \
+            (res.empty? && HTML_ELEMENTS_WITHOUT_BODY.include?(el.value) ? " />" : ">#{res}</#{el.value}>")
+        else
+          output = +''
+          if @stack.last.type != :html_element || @stack.last.options[:content_model] != :raw
+            output << ' ' * indent
+          end
+
+          # PATCH: If an <a> or <iframe>, rewrite the URL to match a known
+          # resource, if possible
+          attrs =
+            if el.value == "a"
+              Middleman::Logger.singleton.debug "== URL: #{scope.asset_url(el.attr["href"])}"
+              el.attr.merge(
+                "href" => scope.asset_url(el.attr["href"])#, "", relative: true)
+              )
+            elsif el.value == "iframe"
+              Middleman::Logger.singleton.debug "== URL: #{scope.asset_url(el.attr["src"])}"
+              el.attr.merge(
+                "src" => scope.asset_url(el.attr["src"])#, "", relative: true)
+              )
+            else
+              el.attr
+            end
+
+          output << "<#{el.value}#{html_attributes(attrs)}"
+          if el.options[:is_closed] && el.options[:content_model] == :raw
+            output << " />"
+          elsif !res.empty? && el.options[:content_model] != :block
+            output << ">#{res}</#{el.value}>"
+          elsif !res.empty?
+            output << ">\n#{res.chomp}\n" << ' ' * indent << "</#{el.value}>"
+          elsif HTML_ELEMENTS_WITHOUT_BODY.include?(el.value)
+            output << " />"
+          else
+            output << "></#{el.value}>"
+          end
+          output << "\n" if @stack.last.type != :html_element || @stack.last.options[:content_model] != :raw
+          output
+        end
+      end
     end
   end
 end

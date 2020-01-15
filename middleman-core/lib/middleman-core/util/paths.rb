@@ -75,23 +75,32 @@ module Middleman
     def asset_path(app, kind, source, options={})
       return source if source.to_s.include?('//') || source.to_s.start_with?('data:')
 
-      asset_folder = case kind
-      when :css
-        app.config[:css_dir]
-      when :js
-        app.config[:js_dir]
-      when :images
-        app.config[:images_dir]
-      when :fonts
-        app.config[:fonts_dir]
-      else
-        kind.to_s
-      end
+      should_relativize =
+        !source.start_with?('/') &&
+        !source.start_with?('./') &&
+        !source.start_with?('../')
+
+      asset_folder =
+        if should_relativize
+          case kind
+          when :css
+            app.config[:css_dir]
+          when :js
+            app.config[:js_dir]
+          when :images
+            app.config[:images_dir]
+          when :fonts
+            app.config[:fonts_dir]
+          else
+            kind.to_s
+          end
+        else
+          ''
+        end
 
       source = source.to_s.tr(' ', '')
       ignore_extension = (kind == :images || kind == :fonts) # don't append extension
       source << ".#{kind}" unless ignore_extension || source.end_with?(".#{kind}")
-      asset_folder = '' if source.start_with?('/') # absolute path
 
       asset_url(app, source, asset_folder, options)
     end
@@ -118,18 +127,26 @@ module Middleman
       # relative path, since it only takes absolute url paths.
       dest_path = url_for(app, path, options.merge(relative: false))
 
-      result = if resource = app.sitemap.find_resource_by_path(dest_path)
-        resource.url
-      elsif resource = app.sitemap.find_resource_by_destination_path(dest_path)
-        resource.url
-      else
-        path = ::File.join(prefix, path)
-        if resource = app.sitemap.find_resource_by_path(path)
+      result =
+        if resource = app.sitemap.find_resource_by_path(dest_path)
+          Middleman::Logger.singleton.debug "== Found Asset 1: #{resource.url}"
+          resource.url
+        elsif resource = app.sitemap.find_resource_by_destination_path(dest_path)
+          # binding.pry
+          Middleman::Logger.singleton.debug "== Found Asset 2: #{resource.url}"
           resource.url
         else
-          ::File.join(app.config[:http_prefix], path)
+          path = ::File.join(prefix, path)
+          if resource = app.sitemap.find_resource_by_path(path)
+            Middleman::Logger.singleton.debug "== Found Asset 3: #{resource.url}"
+            resource.url
+          else
+            # FIXME
+            # binding.pry
+            Middleman::Logger.singleton.debug "== Asset Not Found: #{path}"
+            ::File.join(app.config[:http_prefix], path)
+          end
         end
-      end
 
       final_result = ::Addressable::URI.encode(
         relative_path_from_resource(
@@ -192,19 +209,44 @@ module Middleman
         current_source_dir = Pathname('/' + this_resource.path).dirname
         url_path = current_source_dir.join(url_path) if url_path.relative?
         resource = app.sitemap.find_resource_by_path(url_path.to_s)
+
         if resource
-          resource_url = resource.url
+          # PATCH: Use destination_path instead of url
+          resource_url = resource.destination_path
         else
           # Try to find a resource relative to destination paths
           url_path = Pathname(uri.path)
           current_source_dir = Pathname('/' + this_resource.destination_path).dirname
           url_path = current_source_dir.join(url_path) if url_path.relative?
           resource = app.sitemap.find_resource_by_destination_path(url_path.to_s)
-          resource_url = resource.url if resource
+        end
+
+        if resource
+          # PATCH: Use destination_path instead of url
+          resource_url = resource.destination_path
+        else
+          # PATCH: Try to find a resource relative to the resource, using its
+          # full path
+          url_path = Pathname(uri.path)
+          if url_path.relative?
+            current_source_dir = Pathname(this_resource.source_file).dirname
+            url_path = current_source_dir.join(url_path)
+          end
+          resource = app.sitemap.find_resource_by_full_path(url_path.to_s)
+          # binding.pry
+        end
+
+        if resource
+          # PATCH: Use destination_path instead of url
+          resource_url = resource.destination_path
         end
       elsif options[:find_resource] && uri.path && !uri.host
         resource = app.sitemap.find_resource_by_path(uri.path)
-        resource_url = resource.url if resource
+
+        if resource
+          # PATCH: Use destination_path instead of url
+          resource_url = resource.destination_path
+        end
       end
 
       if resource

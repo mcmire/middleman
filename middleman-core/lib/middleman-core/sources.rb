@@ -4,6 +4,16 @@ require 'middleman-core/contracts'
 module Middleman
   # The standard "record" that contains information about a file on disk.
   SourceFile = Struct.new(:relative_path, :full_path, :source_dir, :destination_dir, :types, :version) do
+    def destination_path
+      # PATCH: Prepend the destination dir to the relative path
+      # (Moved from Sitemap::Store)
+      if destination_dir
+        File.join(destination_dir, relative_path)
+      else
+        relative_path.to_s
+      end
+    end
+
     def read
       Middleman::Sources.file_cache[full_path] ||= {}
       Middleman::Sources.file_cache[full_path][version] ||=
