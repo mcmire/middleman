@@ -133,7 +133,6 @@ module Middleman
           Middleman::Logger.singleton.debug "== Found Asset 1: #{resource.url}"
           resource.url
         elsif resource = app.sitemap.find_resource_by_destination_path(dest_path)
-          # binding.pry
           Middleman::Logger.singleton.debug "== Found Asset 2: #{resource.url}"
           resource.url
         else
@@ -142,8 +141,6 @@ module Middleman
             Middleman::Logger.singleton.debug "== Found Asset 3: #{resource.url}"
             resource.url
           else
-            # FIXME
-            # binding.pry
             Middleman::Logger.singleton.debug "== Asset Not Found: #{path}"
             ::File.join(app.config[:http_prefix], path)
           end
