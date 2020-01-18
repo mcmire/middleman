@@ -22,6 +22,7 @@ module Middleman
 
     Contract String, String, ArrayOf[String], IsA['::Middleman::Application'], Proc => String
     def rewrite_paths(body, path, exts, app, &_block)
+      Middleman::Logger.singleton.debug "Extensions: #{exts}"
       matcher = /([\'\"\(,]\s*|# sourceMappingURL=)([^\s\'\"\)\(>]+(#{::Regexp.union(exts)}))/
 
       url_fn_prefix = 'url('
@@ -46,6 +47,8 @@ module Middleman
             resource = app.sitemap.find_resource_by_destination_path(dest_path)
 
             if resource && (result = yield(asset_path))
+              Middleman::Logger.singleton.debug "Rewriting Path in CSS (#{path}): #{asset_path} => #{result}"
+
               "#{opening_character}#{result}"
             else
               match

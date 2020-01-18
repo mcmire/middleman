@@ -162,7 +162,8 @@ module Middleman
 
     # Which file extensions are "assets."
     # @return [Array.<String>]
-    define_setting :asset_extensions, %w(.css .png .jpg .jpeg .webp .svg .svgz .js .gif .ttf .otf .woff .woff2 .eot .ico .map), 'Which file extensions are treated as assets.'
+    # PATCH: Place woff2 first so that url rewriting works better, see InlineUrlRewriter!
+    define_setting :asset_extensions, %w(.css .png .jpg .jpeg .webp .svg .svgz .js .gif .ttf .otf .woff2 .woff .eot .ico .map), 'Which file extensions are treated as assets.'
 
     # Default string encoding for templates and output.
     # @return [String]
