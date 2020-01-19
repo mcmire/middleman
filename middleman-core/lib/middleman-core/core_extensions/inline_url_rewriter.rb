@@ -126,7 +126,7 @@ module Middleman
           ::Rack::Response.new(
             rewritten,
             status,
-            headers
+            headers.merge('Content-Length' => rewritten.bytesize.to_s)
           ).finish
         end
       end
